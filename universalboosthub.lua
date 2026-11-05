@@ -558,7 +558,6 @@ local origLight = {
     Brightness = Lighting.Brightness,
     ClockTime = Lighting.ClockTime,
     FogEnd = Lighting.FogEnd,
-    GlobalShading = Lighting.GlobalShading,
     Ambient = Lighting.Ambient,
 }
 PlayerTab:Toggle({
@@ -571,7 +570,6 @@ PlayerTab:Toggle({
                 Lighting.Brightness = 2
                 Lighting.ClockTime = 14
                 Lighting.FogEnd = 1e9
-                Lighting.GlobalShading = false
                 Lighting.Ambient = Color3.new(1, 1, 1)
             end)
         else
