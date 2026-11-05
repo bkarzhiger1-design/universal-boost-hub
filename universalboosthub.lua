@@ -11,6 +11,8 @@ local RunService       = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TeleportService  = game:GetService("TeleportService")
 local VirtualUser      = game:GetService("VirtualUser")
+local HttpService      = game:GetService("HttpService")
+local Lighting         = game:GetService("Lighting")
 
 local lp = Players.LocalPlayer
 
@@ -70,7 +72,7 @@ pcall(function() Window:SetToggleKey(Enum.KeyCode.RightShift) end)
 local MainTab     = Window:Tab({ Title = "Main",     Icon = "house" })
 local PlayerTab   = Window:Tab({ Title = "Player",   Icon = "user" })
 local ESPTab      = Window:Tab({ Title = "ESP",      Icon = "eye" })
-local SettingsTab = Window:Tab({ Title = "Settings", Icon = "settings" }) -- intentionally empty
+local SettingsTab = Window:Tab({ Title = "Settings", Icon = "settings" })
 
 -- =====================================================================
 -- MAIN
@@ -101,6 +103,30 @@ MainTab:Button({
     end,
 })
 
+MainTab:Button({
+    Title = "CMD-X",
+    Desc = "Command-line style admin script",
+    Callback = function()
+        loadRemote("CMD-X", "https://raw.githubusercontent.com/CMD-X/CMD-X/master/Source")
+    end,
+})
+
+MainTab:Button({
+    Title = "Fates Admin",
+    Desc = "Feature-rich admin commands",
+    Callback = function()
+        loadRemote("Fates Admin", "https://raw.githubusercontent.com/fatesc/fates-admin/main/main.lua")
+    end,
+})
+
+MainTab:Button({
+    Title = "Nameless Admin",
+    Desc = "Lightweight admin commands",
+    Callback = function()
+        loadRemote("Nameless Admin", "https://raw.githubusercontent.com/FilteringEnabled/NamelessAdmin/main/Source")
+    end,
+})
+
 MainTab:Section({ Title = "Utility" })
 
 MainTab:Button({
@@ -115,6 +141,42 @@ MainTab:Button({
             TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, lp)
         end
     end,
+})
+
+local function smallServerHop()
+    notify("Server Hop", "Searching for a small server...")
+    task.spawn(function()
+        local ok, result = pcall(function()
+            local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
+            return HttpService:JSONDecode(game:HttpGet(url))
+        end)
+        if not ok or type(result) ~= "table" or not result.data then
+            notify("Server Hop", "Could not fetch the server list")
+            return
+        end
+
+        local best
+        for _, s in ipairs(result.data) do
+            if s.id ~= game.JobId and s.playing and s.maxPlayers and s.playing < s.maxPlayers then
+                if not best or s.playing < best.playing then
+                    best = s
+                end
+            end
+        end
+
+        if best then
+            notify("Server Hop", ("Joining server with %d player(s)"):format(best.playing))
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, best.id, lp)
+        else
+            notify("Server Hop", "No other server found")
+        end
+    end)
+end
+
+MainTab:Button({
+    Title = "Small Server Hop",
+    Desc = "Joins the public server with the fewest players",
+    Callback = smallServerHop,
 })
 
 -- =====================================================================
@@ -346,8 +408,180 @@ PlayerTab:Toggle({
     end,
 })
 
+-- Character --------------------------------------------------------
+PlayerTab:Section({ Title = "Character" })
+
+PlayerTab:Toggle({
+    Title = "God Mode",
+    Desc = "Keeps health full (client-side, may not work in every game)",
+    Value = false, Default = false,
+    Callback = function(on)
+        if on then
+            bind("god", RunService.Heartbeat, function()
+                local h = getHum()
+                if h and h.Health > 0 and h.Health < h.MaxHealth then
+                    h.Health = h.MaxHealth
+                end
+            end)
+        else
+            unbind("god")
+        end
+    end,
+})
+
+local lastSafe
+PlayerTab:Toggle({
+    Title = "Anti Void",
+    Desc = "Teleports you back to the last safe spot if you fall into the void",
+    Value = false, Default = false,
+    Callback = function(on)
+        if on then
+            bind("antivoid", RunService.Heartbeat, function()
+                local r, h = getRoot(), getHum()
+                if not (r and h) then return end
+                if h.FloorMaterial ~= Enum.Material.Air then
+                    lastSafe = r.CFrame
+                elseif lastSafe and r.Position.Y < workspace.FallenPartsDestroyHeight + 100 then
+                    r.AssemblyLinearVelocity = Vector3.zero
+                    r.CFrame = lastSafe + Vector3.new(0, 5, 0)
+                end
+            end)
+        else
+            unbind("antivoid")
+        end
+    end,
+})
+
+local spinSpeed = 20
+PlayerTab:Slider({
+    Title = "Spin Speed",
+    Step = 1,
+    Value = { Min = 1, Max = 100, Default = 20 },
+    Callback = function(v) spinSpeed = v end,
+})
+PlayerTab:Toggle({
+    Title = "Spin",
+    Value = false, Default = false,
+    Callback = function(on)
+        if on then
+            bind("spin", RunService.Heartbeat, function()
+                local r = getRoot()
+                if r then
+                    r.CFrame = r.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
+                end
+            end)
+        else
+            unbind("spin")
+        end
+    end,
+})
+
+PlayerTab:Button({
+    Title = "Sit",
+    Callback = function()
+        local h = getHum()
+        if h then h.Sit = true end
+    end,
+})
+
+PlayerTab:Slider({
+    Title = "Field of View",
+    Step = 1,
+    Value = { Min = 30, Max = 120, Default = 70 },
+    Callback = function(v)
+        local cam = workspace.CurrentCamera
+        if cam then cam.FieldOfView = v end
+    end,
+})
+
+-- Target player ----------------------------------------------------
+PlayerTab:Section({ Title = "Target Player" })
+
+local targetName = ""
+local function findPlayer(name)
+    name = name:lower()
+    if name == "" then return nil end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= lp and (p.Name:lower():sub(1, #name) == name
+            or p.DisplayName:lower():sub(1, #name) == name) then
+            return p
+        end
+    end
+end
+
+PlayerTab:Input({
+    Title = "Player Name",
+    Desc = "Username or display name (partial is fine)",
+    Value = "",
+    Placeholder = "Username",
+    Callback = function(text) targetName = text end,
+})
+
+PlayerTab:Button({
+    Title = "Teleport to Player",
+    Callback = function()
+        local target = findPlayer(targetName)
+        local tr = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+        local root = getRoot()
+        if root and tr then
+            root.CFrame = tr.CFrame * CFrame.new(0, 0, 3)
+        else
+            notify("Teleport", "Player not found")
+        end
+    end,
+})
+
+PlayerTab:Toggle({
+    Title = "Spectate Player",
+    Value = false, Default = false,
+    Callback = function(on)
+        local cam = workspace.CurrentCamera
+        if not cam then return end
+        if on then
+            local target = findPlayer(targetName)
+            local hum = target and target.Character and target.Character:FindFirstChildOfClass("Humanoid")
+            if hum then
+                cam.CameraSubject = hum
+            else
+                notify("Spectate", "Player not found")
+            end
+        else
+            cam.CameraSubject = getHum()
+        end
+    end,
+})
+
 -- Misc -------------------------------------------------------------
 PlayerTab:Section({ Title = "Misc" })
+
+local origLight = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    GlobalShading = Lighting.GlobalShading,
+    Ambient = Lighting.Ambient,
+}
+PlayerTab:Toggle({
+    Title = "Fullbright",
+    Desc = "Removes darkness and fog",
+    Value = false, Default = false,
+    Callback = function(on)
+        if on then
+            bind("fullbright", RunService.RenderStepped, function()
+                Lighting.Brightness = 2
+                Lighting.ClockTime = 14
+                Lighting.FogEnd = 1e9
+                Lighting.GlobalShading = false
+                Lighting.Ambient = Color3.new(1, 1, 1)
+            end)
+        else
+            unbind("fullbright")
+            for k, v in pairs(origLight) do
+                Lighting[k] = v
+            end
+        end
+    end,
+})
 
 PlayerTab:Toggle({
     Title = "Click Teleport",
@@ -532,8 +766,41 @@ ESPTab:Toggle({
 })
 
 -- =====================================================================
--- SETTINGS: intentionally empty (SettingsTab), to be filled later
+-- SETTINGS
 -- =====================================================================
+
+SettingsTab:Section({ Title = "Community" })
+
+SettingsTab:Button({
+    Title = "Join Discord Server",
+    Desc = "Opens the invite in Discord and copies the link",
+    Callback = function()
+        local link = "https://discord.gg/fdNcwysDg"
+        local code = "fdNcwysDg"
+
+        local req = request or http_request or (syn and syn.request)
+        if req then
+            pcall(function()
+                req({
+                    Url = "http://127.0.0.1:6463/rpc?v=1",
+                    Method = "POST",
+                    Headers = {
+                        ["Content-Type"] = "application/json",
+                        ["Origin"] = "https://discord.com",
+                    },
+                    Body = HttpService:JSONEncode({
+                        cmd = "INVITE_BROWSER",
+                        args = { code = code },
+                        nonce = HttpService:GenerateGUID(false),
+                    }),
+                })
+            end)
+        end
+
+        if setclipboard then pcall(setclipboard, link) end
+        notify("Discord", "Invite sent to Discord (link also copied): " .. link)
+    end,
+})
 
 Window:SelectTab(1)
 notify("Boost Hub", "Loaded. Press RightShift to toggle the window.")
