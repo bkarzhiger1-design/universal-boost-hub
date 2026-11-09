@@ -71,8 +71,6 @@ local code = game:HttpGet(url)
 local fn = loadstring(code)
 if type(fn) == "function" then
 fn()
-else
-error("Script returned non-function code")
 end
 end)
 if ok then
@@ -204,14 +202,16 @@ flyOn = false,   flySpeed = 60,
 Title = "WalkSpeed",
 Step = 1,
 Value = { Min = 16, Max = 300, Default = 50 },
-Callback = function(v) state.speed = v end,
+Callback = function(v)
+if type(v) == "number" then state.speed = v end
+end,
 })
 PlayerTab:Toggle({
 Title = "Enable WalkSpeed",
 Desc = "Keeps your custom speed applied",
 Value = false, Default = false,
 Callback = function(on)
-state.speedOn = on
+state.speedOn = not not on
 if not on then
 local h = getHum()
 if h then h.WalkSpeed = DEFAULT_SPEED end
@@ -222,13 +222,15 @@ end,
 Title = "JumpPower",
 Step = 1,
 Value = { Min = 50, Max = 400, Default = 100 },
-Callback = function(v) state.jump = v end,
+Callback = function(v)
+if type(v) == "number" then state.jump = v end
+end,
 })
 PlayerTab:Toggle({
 Title = "Enable JumpPower",
 Value = false, Default = false,
 Callback = function(on)
-state.jumpOn = on
+state.jumpOn = not not on
 if not on then
 local h = getHum()
 if h then h.JumpPower = DEFAULT_JUMP end
@@ -248,7 +250,9 @@ end)
 Title = "Gravity",
 Step = 1,
 Value = { Min = 0, Max = 400, Default = math.floor(DEFAULT_GRAVITY) },
-Callback = function(v) workspace.Gravity = v end,
+Callback = function(v)
+if type(v) == "number" then workspace.Gravity = v end
+end,
 })
 ​PlayerTab:Toggle({
 Title = "Infinite Jump",
@@ -331,14 +335,16 @@ end
 Title = "Fly Speed",
 Step = 1,
 Value = { Min = 10, Max = 300, Default = 60 },
-Callback = function(v) state.flySpeed = v end,
+Callback = function(v)
+if type(v) == "number" then state.flySpeed = v end
+end,
 })
 PlayerTab:Toggle({
 Title = "Fly",
 Desc = "WASD / joystick to move, Space up, Ctrl down.",
 Value = false, Default = false,
 Callback = function(on)
-state.flyOn = on
+state.flyOn = not not on
 if on then startFly() else stopFly() end
 end,
 })
@@ -435,7 +441,9 @@ PlayerTab:Slider({
 Title = "Spin Speed",
 Step = 1,
 Value = { Min = 1, Max = 100, Default = 20 },
-Callback = function(v) spinSpeed = v end,
+Callback = function(v)
+if type(v) == "number" then spinSpeed = v end
+end,
 })
 PlayerTab:Toggle({
 Title = "Spin",
@@ -465,8 +473,10 @@ Title = "Field of View",
 Step = 1,
 Value = { Min = 30, Max = 120, Default = 70 },
 Callback = function(v)
+if type(v) == "number" then
 local cam = workspace.CurrentCamera
 if cam then cam.FieldOfView = v end
+end
 end,
 })
 ​-- Target player ----------------------------------------------------
@@ -487,7 +497,9 @@ Title = "Player Name",
 Desc = "Username or display name",
 Value = "",
 Placeholder = "Username",
-Callback = function(text) targetName = text end,
+Callback = function(text)
+if type(text) == "string" then targetName = text end
+end,
 })
 ​PlayerTab:Button({
 Title = "Teleport to Player",
@@ -544,7 +556,7 @@ end)
 else
 unbind("fullbright")
 for k, v in pairs(origLight) do
-Lighting[k] = v
+pcall(function() Lighting[k] = v end)
 end
 end
 end,
@@ -604,7 +616,7 @@ if PlayerScripts then
 local PlayerModule = PlayerScripts:FindFirstChild("PlayerModule")
 if PlayerModule then
 local module = require(PlayerModule)
-if module and type(module.GetCameras) == "function" then
+if type(module) == "table" and type(module.GetCameras) == "function" then
 local cameraModule = module:GetCameras()
 if cameraModule and cameraModule.activeMouseLockController then
 cameraModule.activeMouseLockController:EnableMouseLock(enabled)
@@ -632,10 +644,11 @@ Values = initialNames,
 Value = initialNames[1],
 Callback = function(selected)
 aimTargetPlayer = nil
-if type(selected) == "string" then
+local str = type(selected) == "table" and selected[1] or selected
+if type(str) == "string" then
 for _, p in ipairs(Players:GetPlayers()) do
 local label = p.DisplayName .. " (@" .. p.Name .. ")"
-if label == selected then
+if label == str then
 aimTargetPlayer = p
 break
 end
@@ -648,9 +661,15 @@ Title = "Refresh Player List",
 Desc = "Update target list with current server players",
 Callback = function()
 local newNames = getPlayerNames()
-if aimDropdown and type(aimDropdown.SetValues) == "function" then
+pcall(function()
+if aimDropdown then
+if type(aimDropdown.Refresh) == "function" then
+aimDropdown:Refresh(newNames)
+elseif type(aimDropdown.SetValues) == "function" then
 aimDropdown:SetValues(newNames)
 end
+end
+end)
 notify("Aim", "Player list refreshed!")
 end,
 })
@@ -660,9 +679,9 @@ Desc = "Enables Shiftlock and automatically locks camera onto target player",
 Value = false,
 Default = false,
 Callback = function(on)
-aimLockEnabled = on
-setShiftlock(on)
-​if on then
+aimLockEnabled = not not on
+setShiftlock(aimLockEnabled)
+​if aimLockEnabled then
 bind("aimlock", RunService.RenderStepped, function()
 if aimLockEnabled and aimTargetPlayer and aimTargetPlayer.Character then
 local targetHead = aimTargetPlayer.Character:FindFirstChild("Head") or aimTargetPlayer.Character:FindFirstChild("HumanoidRootPart")
@@ -699,7 +718,7 @@ for i = 1, 11 do
 selectedEmotes[i] = defaultEmotes[1]
 end
 ​local function playEmoteAnimation(emoteObj)
-if type(emoteObj) ~= "table" or not emoteObj.Id or emoteObj.Id == "" or emoteObj.Id == "rbxassetid://0" then
+if type(emoteObj) ~= "table" or not emoteObj.Id or emoteObj.Id == "" then
 notify("Emotes", "Invalid emote animation selected!")
 return
 end
@@ -714,7 +733,7 @@ animator = Instance.new("Animator")
 animator.Parent = hum
 end
 ​local anim = Instance.new("Animation")
-anim.AnimationId = emoteObj.Id
+anim.AnimationId = tostring(emoteObj.Id)
 ​local ok, track = pcall(function()
 if animator and type(animator.LoadAnimation) == "function" then
 return animator:LoadAnimation(anim)
@@ -730,16 +749,18 @@ notify("Emotes", "Failed to load animation ID: " .. tostring(emoteObj.Id))
 end
 end
 ​for i = 1, 11 do
+local slotIndex = i
 EmotesTab:Dropdown({
-Title = "Emotes Player " .. i,
-Desc = "Choose emote for slot " .. i,
+Title = "Emotes Player " .. slotIndex,
+Desc = "Choose emote for slot " .. slotIndex,
 Values = emoteNames,
 Value = emoteNames[1],
 Callback = function(choice)
-if type(choice) == "string" then
+local str = type(choice) == "table" and choice[1] or choice
+if type(str) == "string" then
 for _, e in ipairs(defaultEmotes) do
-if e.Name == choice then
-selectedEmotes[i] = e
+if e.Name == str then
+selectedEmotes[slotIndex] = e
 break
 end
 end
@@ -749,15 +770,16 @@ end,
 end
 ​EmotesTab:Section({ Title = "Play Emotes" })
 ​for i = 1, 11 do
+local slotIndex = i
 EmotesTab:Button({
-Title = "Play Emote Player " .. i,
-Desc = "Triggers the emote selected in Emotes Player " .. i,
+Title = "Play Emote Player " .. slotIndex,
+Desc = "Triggers the emote selected in Emotes Player " .. slotIndex,
 Callback = function()
-local emoteToPlay = selectedEmotes[i]
+local emoteToPlay = selectedEmotes[slotIndex]
 if emoteToPlay then
 playEmoteAnimation(emoteToPlay)
 else
-notify("Emotes", "No emote assigned to Slot " .. i)
+notify("Emotes", "No emote assigned to Slot " .. slotIndex)
 end
 end,
 })
