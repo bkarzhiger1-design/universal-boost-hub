@@ -1,20 +1,25 @@
 --[[
-Boost Hub  |  built with WindUI
+Boost Hub  |  built with WindUI (Footagesus)
 Tabs: Main, Player, Aim, Emotes, ESP, Settings
 ]]
-​-- 1. Robust UI Library Loader
+​-- Load WindUI with fallback sources
 local WindUI
-local success, err = pcall(function()
-return loadstring(game:HttpGet("https://tree-hub.vercel.app/api/UI/WindUI"))()
+local WINDUI_URLS = {
+"https://tree-hub.vercel.app/api/UI/WindUI",
+"https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua",
+"https://cdn.jsdelivr.net/gh/Footagesus/WindUI@main/dist/main.lua",
+}
+​for _, url in ipairs(WINDUI_URLS) do
+local ok, lib = pcall(function()
+return loadstring(game:HttpGet(url))()
 end)
-​if not success or not WindUI then
--- Fallback mirror if primary delivery is down
-pcall(function()
-WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-end)
+if ok and lib then
+WindUI = lib
+break
+end
 end
 ​if not WindUI then
-warn("[Boost Hub] Failed to load UI library.")
+warn("[Boost Hub] Could not load WindUI.")
 return
 end
 ​-- Services
@@ -72,9 +77,7 @@ end
 end)
 end
 ​-- Window Construction
-local Window
-local windowOk = pcall(function()
-Window = WindUI:CreateWindow({
+local Window = WindUI:CreateWindow({
 Title = "Boost Hub",
 Icon = "rocket",
 Author = "Boost Hub",
@@ -82,18 +85,6 @@ Folder = "BoostHub",
 Size = UDim2.fromOffset(580, 460),
 Theme = "Dark",
 })
-end)
-​if not windowOk or not Window then
--- Alternative instantiation method for legacy WindUI builds
-Window = WindUI.CreateWindow({
-Title = "Boost Hub",
-Icon = "rocket",
-Author = "Boost Hub",
-Folder = "BoostHub",
-Size = UDim2.fromOffset(580, 460),
-Theme = "Dark",
-})
-end
 ​pcall(function() Window:SetToggleKey(Enum.KeyCode.RightShift) end)
 ​local MainTab     = Window:Tab({ Title = "Main",     Icon = "house" })
 local PlayerTab   = Window:Tab({ Title = "Player",   Icon = "user" })
@@ -885,4 +876,4 @@ notify("Discord", "Link copied to clipboard!")
 end,
 })
 ​pcall(function() Window:SelectTab(1) end)
-notify("Boost Hub", "Loaded successfully!")
+notify("Boost Hub", "Enjoy the script! ")
