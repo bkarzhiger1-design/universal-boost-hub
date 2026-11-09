@@ -1,6 +1,6 @@
 --[[
 Boost Hub  |  built with WindUI (Footagesus)
-Tabs: Main, Player, Aim, Emotes, ESP, Settings
+Tabs: Main, Player, ESP, Aim, Emotes, Settings
 ]]
 ​-- Load WindUI with retries and fallback mirrors
 local WINDUI_URLS = {
@@ -23,7 +23,7 @@ if WindUI then break end
 task.wait(2)
 end
 ​if not WindUI then
-warn("[Boost Hub] Could not load WindUI. Try again in a minute.")
+warn("[Boost Hub] Could not load WindUI.")
 return
 end
 ​-- Services -------------------------------------------------------------
@@ -50,8 +50,7 @@ pcall(function()
 WindUI:Notify({ Title = tostring(title), Content = tostring(content), Duration = 3 })
 end)
 end
-​-- Connection manager
-local conns = {}
+​local conns = {}
 local function unbind(name)
 if conns[name] then
 pcall(function() conns[name]:Disconnect() end)
@@ -92,9 +91,9 @@ Theme = "Dark",
 ​pcall(function() Window:SetToggleKey(Enum.KeyCode.RightShift) end)
 ​local MainTab     = Window:Tab({ Title = "Main",     Icon = "house" })
 local PlayerTab   = Window:Tab({ Title = "Player",   Icon = "user" })
+local ESPTab      = Window:Tab({ Title = "ESP",      Icon = "eye" })
 local AimTab      = Window:Tab({ Title = "Aim",      Icon = "crosshair" })
 local EmotesTab   = Window:Tab({ Title = "Emotes",   Icon = "smile" })
-local ESPTab      = Window:Tab({ Title = "ESP",      Icon = "eye" })
 local SettingsTab = Window:Tab({ Title = "Settings", Icon = "settings" })
 ​-- =====================================================================
 -- MAIN
@@ -697,83 +696,130 @@ end
 end,
 })
 ​-- =====================================================================
--- EMOTES TAB
+-- EMOTES TAB (70 Custom Emotes)
 -- =====================================================================
-EmotesTab:Section({ Title = "Emotes Configuration" })
-​local defaultEmotes = {
-{ Name = "Dance 1",   EmoteName = "dance" },
-{ Name = "Dance 2",   EmoteName = "dance2" },
-{ Name = "Dance 3",   EmoteName = "dance3" },
-{ Name = "Point",     EmoteName = "point" },
-{ Name = "Wave",      EmoteName = "wave" },
-{ Name = "Cheer",     EmoteName = "cheer" },
-{ Name = "Laugh",     EmoteName = "laugh" }
+EmotesTab:Section({ Title = "Emotes Configuration (70 Emotes)" })
+​local emoteList = {
+"Floating Aura", "Monkey", "Curtsy", "Godlike", "Helicopter", "Happy", "TWICE The Feels",
+"Baby Queen - Bouncy Twirl", "Rat Dance", "Plane", "Sleep", "Tank", "Hero Landing", "Shy",
+"Car", "Floss Dance", "Sit", "Quiet Waves", "Fake MM2 Death", "Yungblud Happier Jump",
+"Baby Dance", "Baby Queen - Face Frame", "Box", "Top Rock", "Hide", "Baby Queen - Strut",
+"Bored", "KATSEYE - Touch", "Dog", "L Dance", "Ragdoll Push", "Take The L", "Fry Dance",
+"Twirl", "Fashionable", "Line Dance", "Cower", "High Wave", "Worm", "TWICE Feel Special",
+"V Pose", "Lotus Position", "Frosty Flair", "Effortless Aura Pose", "HOT TO GO!", "Dolphin Dance",
+"Old Town Road Dance", "Phase", "Sturdy Dance", "Piano Hands", "Around Town", "Head Bop",
+"Celebrate", "SHAKE", "Show Dem Wrists", "Side to Side", "Dorky Dance", "Cute Levitating",
+"TWICE LIKEY", "Chill Bounce", "Telekinesis Head Floating Aura", "Hornet's Spider Dance",
+"Spiderman Hang", "Shuffle", "Fancy Feet", "Dizzy", "TWICE What Is Love", "Jamal Brazil Groove",
+"HOLIDAY Dance", "Hip Sway"
 }
-​local emoteNames = {}
-for _, e in ipairs(defaultEmotes) do
-table.insert(emoteNames, e.Name)
-end
+​local emoteIds = {
+["Floating Aura"] = 79795305221612,
+["Monkey"] = 3716636630,
+["Curtsy"] = 4646306583,
+["Godlike"] = 3823158750,
+["Helicopter"] = 110553756436163,
+["Happy"] = 4849499887,
+["TWICE The Feels"] = 12874468267,
+["Baby Queen - Bouncy Twirl"] = 14353423348,
+["Rat Dance"] = 83606297144428,
+["Plane"] = 134913783169182,
+["Sleep"] = 4689362868,
+["Tank"] = 85076031433488,
+["Hero Landing"] = 5104377791,
+["Shy"] = 3576717965,
+["Car"] = 115407270129592,
+["Floss Dance"] = 5917570207,
+["Sit"] = 129668542320076,
+["Quiet Waves"] = 7466046574,
+["Fake MM2 Death"] = 107498554725527,
+["Yungblud Happier Jump"] = 15610015346,
+["Baby Dance"] = 4272484885,
+["Baby Queen - Face Frame"] = 14353421343,
+["Box"] = 73500261613116,
+["Top Rock"] = 3570535774,
+["Hide"] = 84868707350198,
+["Baby Queen - Strut"] = 14353425085,
+["Bored"] = 5230661597,
+["KATSEYE - Touch"] = 139021427684680,
+["Dog"] = 84198855496510,
+["L Dance"] = 73039500693145,
+["Ragdoll Push"] = 91452077708399,
+["Take The L"] = 75633408126191,
+["Fry Dance"] = 124799741487022,
+["Twirl"] = 3716633898,
+["Fashionable"] = 3576745472,
+["Line Dance"] = 4049646104,
+["Cower"] = 4940597758,
+["High Wave"] = 5915776835,
+["Worm"] = 108956933782219,
+["TWICE Feel Special"] = 14900153406,
+["V Pose"] = 10214418283,
+["Lotus Position"] = 12507097350,
+["Frosty Flair"] = 10214406616,
+["Effortless Aura Pose"] = 101573394483995,
+["HOT TO GO!"] = 79312439851071,
+["Dolphin Dance"] = 5938365243,
+["Old Town Road Dance"] = 5938394742,
+["Phase"] = 79653736088166,
+["Sturdy Dance"] = 17746270218,
+["Piano Hands"] = 16553249658,
+["Around Town"] = 3576747102,
+["Head Bop"] = 15554010118,
+["Celebrate"] = 3994127840,
+["SHAKE"] = 132367660388476,
+["Show Dem Wrists"] = 7202898984,
+["Side to Side"] = 3762641826,
+["Dorky Dance"] = 4212499637,
+["Cute Levitating"] = 101601077005248,
+["TWICE LIKEY"] = 14900151704,
+["Chill Bounce"] = 132112297758791,
+["Telekinesis Head Floating Aura"] = 81666519067619,
+["Hornet's Spider Dance"] = 74716792202343,
+["Spiderman Hang"] = 108635834286627,
+["Shuffle"] = 4391208058,
+["Fancy Feet"] = 3934988903,
+["Dizzy"] = 3934986896,
+["TWICE What Is Love"] = 13344121112,
+["Jamal Brazil Groove"] = 104131847054135,
+["HOLIDAY Dance"] = 5938396308,
+["Hip Sway"] = 80963950541052
+}
 ​local selectedEmotes = {}
-for i = 1, 11 do
-selectedEmotes[i] = defaultEmotes[1]
-end
-​local function playEmoteAnimation(emoteObj)
-if type(emoteObj) ~= "table" or not emoteObj.EmoteName then
-notify("Emotes", "Invalid emote selection!")
-return
-end
-​local played = false
-pcall(function()
-played = Players:PlayEmote(emoteObj.EmoteName)
-end)
-​if not played then
-pcall(function()
-local hum = getHum()
-if hum then
-hum:PlayEmote(emoteObj.EmoteName)
-played = true
-end
-end)
-end
-​if played then
-notify("Emotes", "Playing: " .. tostring(emoteObj.Name))
-else
-notify("Emotes", "Could not play emote: " .. tostring(emoteObj.Name))
-end
-end
-​for i = 1, 11 do
+​for i = 1, 10 do
 local slotIndex = i
-EmotesTab:Dropdown({
+selectedEmotes[slotIndex] = emoteList[1]
+​EmotesTab:Dropdown({
 Title = "Emotes Player " .. slotIndex,
-Desc = "Choose emote for slot " .. slotIndex,
-Values = emoteNames,
-Value = emoteNames[1],
-Callback = function(choice)
-local str = type(choice) == "table" and choice[1] or choice
+Values = emoteList,
+Value = emoteList[1],
+Callback = function(v)
+local str = type(v) == "table" and v[1] or v
 if type(str) == "string" then
-for _, e in ipairs(defaultEmotes) do
-if e.Name == str then
-selectedEmotes[slotIndex] = e
-break
-end
-end
+selectedEmotes[slotIndex] = str
 end
 end,
 })
-end
-​EmotesTab:Section({ Title = "Play Emotes" })
-​for i = 1, 11 do
-local slotIndex = i
-EmotesTab:Button({
+​EmotesTab:Button({
 Title = "Play Emote Player " .. slotIndex,
-Desc = "Triggers the emote selected in Emotes Player " .. slotIndex,
 Callback = function()
-local emoteToPlay = selectedEmotes[slotIndex]
-if emoteToPlay then
-playEmoteAnimation(emoteToPlay)
-else
-notify("Emotes", "No emote assigned to Slot " .. slotIndex)
+local chosenName = selectedEmotes[slotIndex]
+local assetId = emoteIds[chosenName]
+if not assetId then
+notify("Emotes", "Invalid emote selected!")
+return
 end
+​pcall(function()
+local hum = getHum()
+if hum then
+local animator = hum:FindFirstChildOfClass("Animator") or Instance.new("Animator", hum)
+local anim = Instance.new("Animation")
+anim.AnimationId = "rbxassetid://" .. tostring(assetId)
+local track = animator:LoadAnimation(anim)
+track:Play()
+notify("Emotes", "Playing: " .. tostring(chosenName))
+end
+end)
 end,
 })
 end
@@ -930,4 +976,4 @@ notify("Discord", "Invite sent to Discord (link also copied): " .. link)
 end,
 })
 ​Window:SelectTab(1)
-notify("Boost Hub", "Loaded. Press RightShift to toggle the window.")
+notify("Boost Hub", "Loaded successfully with 70 Emotes & Aim!")
