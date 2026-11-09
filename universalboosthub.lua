@@ -2,7 +2,7 @@
 Boost Hub  |  built with WindUI (Footagesus)
 Tabs: Main, Player, Aim, Emotes, ESP, Settings
 ]]
-​-- WindUI Loader with fallbacks
+​-- Load WindUI safely
 local WINDUI_URLS = {
 "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua",
 "https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua",
@@ -32,7 +32,6 @@ local RunService       = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TeleportService  = game:GetService("TeleportService")
 local VirtualUser      = game:GetService("VirtualUser")
-local HttpService      = game:GetService("HttpService")
 local Lighting         = game:GetService("Lighting")
 ​local lp = Players.LocalPlayer
 ​-- Helpers --------------------------------------------------------------
@@ -95,28 +94,23 @@ local SettingsTab = Window:Tab({ Title = "Settings", Icon = "settings" })
 MainTab:Section({ Title = "Script Loaders" })
 ​MainTab:Button({
 Title = "Infinite Yield",
-Desc = "Popular admin command script",
 Callback = function() loadRemote("Infinite Yield", "https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source") end,
 })
 MainTab:Button({
 Title = "Dex Explorer",
-Desc = "Game explorer / instance viewer",
 Callback = function() loadRemote("Dex Explorer", "https://raw.githubusercontent.com/infyiff/backup/main/dex.lua") end,
 })
 MainTab:Button({
 Title = "SimpleSpy",
-Desc = "Remote event / function spy",
 Callback = function() loadRemote("SimpleSpy", "https://raw.githubusercontent.com/exxtremestuffs/SimpleSpySource/master/SimpleSpy.lua") end,
 })
 MainTab:Button({
 Title = "CMD-X",
-Desc = "Command-line style admin script",
 Callback = function() loadRemote("CMD-X", "https://raw.githubusercontent.com/CMD-X/CMD-X/master/Source") end,
 })
 ​MainTab:Section({ Title = "Utility" })
 MainTab:Button({
 Title = "Rejoin Server",
-Desc = "Rejoin the current server",
 Callback = function()
 if #Players:GetPlayers() <= 1 then
 pcall(function() lp:Kick("\nRejoining...") end)
@@ -348,7 +342,7 @@ end
 end,
 })
 ​-- =====================================================================
--- EMOTES TAB (70 Emotes x 10 Slots)
+-- EMOTES TAB (70 Emotes x 3 Light Slots)
 -- =====================================================================
 EmotesTab:Section({ Title = "Emotes Selector" })
 ​local emoteList = {
@@ -391,25 +385,9 @@ EmotesTab:Section({ Title = "Emotes Selector" })
 ["Dizzy"] = 3934986896, ["TWICE What Is Love"] = 13344121112, ["Jamal Brazil Groove"] = 104131847054135,
 ["HOLIDAY Dance"] = 5938396308, ["Hip Sway"] = 80963950541052
 }
-​local selectedEmotes = {}
-​for i = 1, 10 do
-selectedEmotes[i] = emoteList[1]
-​EmotesTab:Dropdown({
-Title = "Emotes Player " .. i,
-Values = emoteList,
-Value = emoteList[1],
-Callback = function(v)
-if type(v) == "table" then
-selectedEmotes[i] = v[1]
-else
-selectedEmotes[i] = v
-end
-end,
-})
-​EmotesTab:Button({
-Title = "Play Emote Player " .. i,
-Callback = function()
-local chosenName = selectedEmotes[i]
+​local selectedEmotes = { emoteList[1], emoteList[1], emoteList[1] }
+​local function playEmoteSlot(slotIndex)
+local chosenName = selectedEmotes[slotIndex]
 local assetId = emoteIds[chosenName]
 if not assetId then return end
 ​pcall(function()
@@ -422,9 +400,46 @@ local track = animator:LoadAnimation(anim)
 if track then track:Play() end
 end
 end)
+end
+​-- Slot 1
+EmotesTab:Dropdown({
+Title = "Emotes Player 1",
+Values = emoteList,
+Value = emoteList[1],
+Callback = function(v)
+selectedEmotes[1] = type(v) == "table" and v[1] or v
 end,
 })
-end
+EmotesTab:Button({
+Title = "Play Emote Player 1",
+Callback = function() playEmoteSlot(1) end,
+})
+​-- Slot 2
+EmotesTab:Dropdown({
+Title = "Emotes Player 2",
+Values = emoteList,
+Value = emoteList[1],
+Callback = function(v)
+selectedEmotes[2] = type(v) == "table" and v[1] or v
+end,
+})
+EmotesTab:Button({
+Title = "Play Emote Player 2",
+Callback = function() playEmoteSlot(2) end,
+})
+​-- Slot 3
+EmotesTab:Dropdown({
+Title = "Emotes Player 3",
+Values = emoteList,
+Value = emoteList[1],
+Callback = function(v)
+selectedEmotes[3] = type(v) == "table" and v[1] or v
+end,
+})
+EmotesTab:Button({
+Title = "Play Emote Player 3",
+Callback = function() playEmoteSlot(3) end,
+})
 ​-- =====================================================================
 -- ESP
 -- =====================================================================
@@ -527,4 +542,4 @@ notify("Discord", "Discord invite link copied to clipboard!")
 end,
 })
 ​Window:SelectTab(1)
-notify("Boost Hub", "Boost Hub loaded successfully!")
+notify("Boost Hub", "Loaded successfully!")
