@@ -1,32 +1,23 @@
 --[[
-Boost Hub  |  built with WindUI (Footagesus)
+Boost Hub  |  built with WindUI
 Tabs: Main, Player, Aim, Emotes, ESP, Settings
 ]]
-​-- Load WindUI with retries and fallback mirrors
-local WINDUI_URLS = {
-"https://github.com/Footagesus/WindUI/releases/latest/download/main.lua",
-"https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua",
-"https://cdn.jsdelivr.net/gh/Footagesus/WindUI@main/dist/main.lua",
-}
-​local WindUI
-for attempt = 1, 3 do
-for _, url in ipairs(WINDUI_URLS) do
-local ok, lib = pcall(function()
-return loadstring(game:HttpGet(url))()
+​-- 1. Robust UI Library Loader
+local WindUI
+local success, err = pcall(function()
+return loadstring(game:HttpGet("https://tree-hub.vercel.app/api/UI/WindUI"))()
 end)
-if ok and lib then
-WindUI = lib
-break
-end
-end
-if WindUI then break end
-task.wait(2)
+​if not success or not WindUI then
+-- Fallback mirror if primary delivery is down
+pcall(function()
+WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+end)
 end
 ​if not WindUI then
-warn("[Boost Hub] Could not load WindUI.")
+warn("[Boost Hub] Failed to load UI library.")
 return
 end
-​-- Services -------------------------------------------------------------
+​-- Services
 local Players          = game:GetService("Players")
 local RunService       = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -35,7 +26,7 @@ local VirtualUser      = game:GetService("VirtualUser")
 local HttpService      = game:GetService("HttpService")
 local Lighting         = game:GetService("Lighting")
 ​local lp = Players.LocalPlayer
-​-- Helpers --------------------------------------------------------------
+​-- Helpers
 local function getChar() return lp and lp.Character end
 local function getHum()
 local c = getChar()
@@ -47,7 +38,9 @@ return c and c:FindFirstChild("HumanoidRootPart")
 end
 ​local function notify(title, content)
 pcall(function()
+if WindUI and WindUI.Notify then
 WindUI:Notify({ Title = tostring(title), Content = tostring(content), Duration = 3 })
+end
 end)
 end
 ​-- Connection manager
@@ -66,7 +59,7 @@ end
 end
 ​local function loadRemote(name, url)
 task.spawn(function()
-local ok, err = pcall(function()
+local ok, res = pcall(function()
 local code = game:HttpGet(url)
 local fn = loadstring(code)
 if type(fn) == "function" then fn() end
@@ -74,12 +67,14 @@ end)
 if ok then
 notify("Loader", name .. " loaded")
 else
-notify("Loader", name .. " failed: " .. tostring(err))
+notify("Loader", name .. " failed: " .. tostring(res))
 end
 end)
 end
-​-- Window ---------------------------------------------------------------
-local Window = WindUI:CreateWindow({
+​-- Window Construction
+local Window
+local windowOk = pcall(function()
+Window = WindUI:CreateWindow({
 Title = "Boost Hub",
 Icon = "rocket",
 Author = "Boost Hub",
@@ -87,6 +82,18 @@ Folder = "BoostHub",
 Size = UDim2.fromOffset(580, 460),
 Theme = "Dark",
 })
+end)
+​if not windowOk or not Window then
+-- Alternative instantiation method for legacy WindUI builds
+Window = WindUI.CreateWindow({
+Title = "Boost Hub",
+Icon = "rocket",
+Author = "Boost Hub",
+Folder = "BoostHub",
+Size = UDim2.fromOffset(580, 460),
+Theme = "Dark",
+})
+end
 ​pcall(function() Window:SetToggleKey(Enum.KeyCode.RightShift) end)
 ​local MainTab     = Window:Tab({ Title = "Main",     Icon = "house" })
 local PlayerTab   = Window:Tab({ Title = "Player",   Icon = "user" })
@@ -196,8 +203,7 @@ jumpOn = false,  jump = 100,
 flyOn = false,   flySpeed = 60,
 }
 ​PlayerTab:Section({ Title = "Movement" })
-​-- WalkSpeed
-PlayerTab:Slider({
+​PlayerTab:Slider({
 Title = "WalkSpeed",
 Step = 1,
 Value = { Min = 16, Max = 300, Default = 50 },
@@ -215,8 +221,7 @@ if h then h.WalkSpeed = DEFAULT_SPEED end
 end
 end,
 })
-​-- JumpPower
-PlayerTab:Slider({
+​PlayerTab:Slider({
 Title = "JumpPower",
 Step = 1,
 Value = { Min = 50, Max = 400, Default = 100 },
@@ -233,8 +238,7 @@ if h then h.JumpPower = DEFAULT_JUMP end
 end
 end,
 })
-​-- Apply speed / jump every frame while enabled
-RunService.Heartbeat:Connect(function()
+​RunService.Heartbeat:Connect(function()
 local h = getHum()
 if not h then return end
 if state.speedOn then h.WalkSpeed = state.speed end
@@ -243,15 +247,13 @@ h.UseJumpPower = true
 h.JumpPower = state.jump
 end
 end)
-​-- Gravity
-PlayerTab:Slider({
+​PlayerTab:Slider({
 Title = "Gravity",
 Step = 1,
 Value = { Min = 0, Max = 400, Default = math.floor(DEFAULT_GRAVITY) },
 Callback = function(v) if type(v) == "number" then workspace.Gravity = v end end,
 })
-​-- Infinite Jump
-PlayerTab:Toggle({
+​PlayerTab:Toggle({
 Title = "Infinite Jump",
 Value = false, Default = false,
 Callback = function(on)
@@ -265,8 +267,7 @@ unbind("infjump")
 end
 end,
 })
-​-- Noclip
-PlayerTab:Toggle({
+​PlayerTab:Toggle({
 Title = "Noclip",
 Desc = "Walk through walls",
 Value = false, Default = false,
@@ -286,8 +287,7 @@ unbind("noclip")
 end
 end,
 })
-​-- Fly --------------------------------------------------------------
-PlayerTab:Section({ Title = "Fly" })
+​PlayerTab:Section({ Title = "Fly" })
 ​local flyBV, flyBG
 ​local function stopFly()
 unbind("fly")
@@ -337,15 +337,14 @@ Callback = function(v) if type(v) == "number" then state.flySpeed = v end end,
 })
 PlayerTab:Toggle({
 Title = "Fly",
-Desc = "WASD / joystick to move, Space up, Ctrl down. You also fly toward where the camera looks.",
+Desc = "WASD / joystick to move, Space up, Ctrl down.",
 Value = false, Default = false,
 Callback = function(on)
 state.flyOn = not not on
 if on then startFly() else stopFly() end
 end,
 })
-​-- Protection -------------------------------------------------------
-PlayerTab:Section({ Title = "Protection" })
+​PlayerTab:Section({ Title = "Protection" })
 ​PlayerTab:Toggle({
 Title = "Anti AFK",
 Desc = "Prevents the 20 minute idle kick",
@@ -363,7 +362,6 @@ end,
 })
 ​PlayerTab:Toggle({
 Title = "Anti Fling",
-Desc = "Disables collisions with other players and cancels extreme velocity",
 Value = false, Default = false,
 Callback = function(on)
 if on then
@@ -391,11 +389,9 @@ unbind("antifling")
 end
 end,
 })
-​-- Character --------------------------------------------------------
-PlayerTab:Section({ Title = "Character" })
+​PlayerTab:Section({ Title = "Character" })
 ​PlayerTab:Toggle({
 Title = "God Mode",
-Desc = "Keeps health full (client-side, may not work in every game)",
 Value = false, Default = false,
 Callback = function(on)
 if on then
@@ -413,7 +409,6 @@ end,
 ​local lastSafe
 PlayerTab:Toggle({
 Title = "Anti Void",
-Desc = "Teleports you back to the last safe spot if you fall into the void",
 Value = false, Default = false,
 Callback = function(on)
 if on then
@@ -473,8 +468,7 @@ if cam then cam.FieldOfView = v end
 end
 end,
 })
-​-- Target player ----------------------------------------------------
-PlayerTab:Section({ Title = "Target Player" })
+​PlayerTab:Section({ Title = "Target Player" })
 ​local targetName = ""
 local function findPlayer(name)
 name = tostring(name or ""):lower()
@@ -488,7 +482,6 @@ end
 end
 ​PlayerTab:Input({
 Title = "Player Name",
-Desc = "Username or display name (partial is fine)",
 Value = "",
 Placeholder = "Username",
 Callback = function(text) targetName = tostring(text or "") end,
@@ -525,8 +518,7 @@ cam.CameraSubject = getHum()
 end
 end,
 })
-​-- Misc -------------------------------------------------------------
-PlayerTab:Section({ Title = "Misc" })
+​PlayerTab:Section({ Title = "Misc" })
 ​local origLight = {
 Brightness = Lighting.Brightness,
 ClockTime = Lighting.ClockTime,
@@ -535,7 +527,6 @@ Ambient = Lighting.Ambient,
 }
 PlayerTab:Toggle({
 Title = "Fullbright",
-Desc = "Removes darkness and fog",
 Value = false, Default = false,
 Callback = function(on)
 if on then
@@ -555,7 +546,6 @@ end,
 })
 ​PlayerTab:Toggle({
 Title = "Click Teleport",
-Desc = "Hold Left Ctrl and click to teleport",
 Value = false, Default = false,
 Callback = function(on)
 if on then
@@ -584,7 +574,6 @@ end,
 })
 ​PlayerTab:Button({
 Title = "Reset All Movement",
-Desc = "Restores default speed, jump and gravity",
 Callback = function()
 local h = getHum()
 if h then
@@ -895,5 +884,5 @@ if setclipboard then pcall(setclipboard, link) end
 notify("Discord", "Link copied to clipboard!")
 end,
 })
-​Window:SelectTab(1)
-notify("Boost Hub", "Enjoy the script!")
+​pcall(function() Window:SelectTab(1) end)
+notify("Boost Hub", "Loaded successfully!")
