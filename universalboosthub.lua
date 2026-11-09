@@ -2,7 +2,7 @@
 Boost Hub  |  built with WindUI (Footagesus)
 Tabs: Main, Player, Aim, Emotes, ESP, Settings
 ]]
-​-- Load WindUI with retries and fallback mirrors (a single HTTP 504 won't break the hub)
+​-- Load WindUI with retries and fallback mirrors
 local WINDUI_URLS = {
 "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua",
 "https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua",
@@ -23,7 +23,7 @@ if WindUI then break end
 task.wait(2)
 end
 ​if not WindUI then
-warn("[Boost Hub] Could not load WindUI (the download server may be down). Try again in a minute.")
+warn("[Boost Hub] Could not load WindUI. Try again in a minute.")
 return
 end
 ​-- Services -------------------------------------------------------------
@@ -36,7 +36,7 @@ local HttpService      = game:GetService("HttpService")
 local Lighting         = game:GetService("Lighting")
 ​local lp = Players.LocalPlayer
 ​-- Helpers --------------------------------------------------------------
-local function getChar() return lp.Character end
+local function getChar() return lp and lp.Character end
 local function getHum()
 local c = getChar()
 return c and c:FindFirstChildOfClass("Humanoid")
@@ -46,24 +46,34 @@ local c = getChar()
 return c and c:FindFirstChild("HumanoidRootPart")
 end
 ​local function notify(title, content)
-WindUI:Notify({ Title = title, Content = content, Duration = 3 })
+pcall(function()
+WindUI:Notify({ Title = tostring(title), Content = tostring(content), Duration = 3 })
+end)
 end
 ​-- Connection manager
 local conns = {}
 local function unbind(name)
 if conns[name] then
-conns[name]:Disconnect()
+pcall(function() conns[name]:Disconnect() end)
 conns[name] = nil
 end
 end
 local function bind(name, signal, fn)
 unbind(name)
+if signal then
 conns[name] = signal:Connect(fn)
+end
 end
 ​local function loadRemote(name, url)
 task.spawn(function()
 local ok, err = pcall(function()
-loadstring(game:HttpGet(url))()
+local code = game:HttpGet(url)
+local fn = loadstring(code)
+if type(fn) == "function" then
+fn()
+else
+error("Script returned non-function code")
+end
 end)
 if ok then
 notify("Loader", name .. " loaded")
@@ -140,7 +150,7 @@ Title = "Rejoin Server",
 Desc = "Rejoin the current server",
 Callback = function()
 if #Players:GetPlayers() <= 1 then
-lp:Kick("\nRejoining...")
+pcall(function() lp:Kick("\nRejoining...") end)
 task.wait()
 TeleportService:Teleport(game.PlaceId, lp)
 else
@@ -190,8 +200,7 @@ jumpOn = false,  jump = 100,
 flyOn = false,   flySpeed = 60,
 }
 ​PlayerTab:Section({ Title = "Movement" })
-​-- WalkSpeed
-PlayerTab:Slider({
+​PlayerTab:Slider({
 Title = "WalkSpeed",
 Step = 1,
 Value = { Min = 16, Max = 300, Default = 50 },
@@ -209,8 +218,7 @@ if h then h.WalkSpeed = DEFAULT_SPEED end
 end
 end,
 })
-​-- JumpPower
-PlayerTab:Slider({
+​PlayerTab:Slider({
 Title = "JumpPower",
 Step = 1,
 Value = { Min = 50, Max = 400, Default = 100 },
@@ -227,8 +235,7 @@ if h then h.JumpPower = DEFAULT_JUMP end
 end
 end,
 })
-​-- Apply speed / jump every frame while enabled
-RunService.Heartbeat:Connect(function()
+​RunService.Heartbeat:Connect(function()
 local h = getHum()
 if not h then return end
 if state.speedOn then h.WalkSpeed = state.speed end
@@ -237,15 +244,13 @@ h.UseJumpPower = true
 h.JumpPower = state.jump
 end
 end)
-​-- Gravity
-PlayerTab:Slider({
+​PlayerTab:Slider({
 Title = "Gravity",
 Step = 1,
 Value = { Min = 0, Max = 400, Default = math.floor(DEFAULT_GRAVITY) },
 Callback = function(v) workspace.Gravity = v end,
 })
-​-- Infinite Jump
-PlayerTab:Toggle({
+​PlayerTab:Toggle({
 Title = "Infinite Jump",
 Value = false, Default = false,
 Callback = function(on)
@@ -259,8 +264,7 @@ unbind("infjump")
 end
 end,
 })
-​-- Noclip
-PlayerTab:Toggle({
+​PlayerTab:Toggle({
 Title = "Noclip",
 Desc = "Walk through walls",
 Value = false, Default = false,
@@ -331,7 +335,7 @@ Callback = function(v) state.flySpeed = v end,
 })
 PlayerTab:Toggle({
 Title = "Fly",
-Desc = "WASD / joystick to move, Space up, Ctrl down. You also fly toward where the camera looks.",
+Desc = "WASD / joystick to move, Space up, Ctrl down.",
 Value = false, Default = false,
 Callback = function(on)
 state.flyOn = on
@@ -357,7 +361,7 @@ end,
 })
 ​PlayerTab:Toggle({
 Title = "Anti Fling",
-Desc = "Disables collisions with other players and cancels extreme velocity",
+Desc = "Disables collisions with other players",
 Value = false, Default = false,
 Callback = function(on)
 if on then
@@ -389,7 +393,7 @@ end,
 PlayerTab:Section({ Title = "Character" })
 ​PlayerTab:Toggle({
 Title = "God Mode",
-Desc = "Keeps health full (client-side, may not work in every game)",
+Desc = "Keeps health full",
 Value = false, Default = false,
 Callback = function(on)
 if on then
@@ -407,7 +411,7 @@ end,
 ​local lastSafe
 PlayerTab:Toggle({
 Title = "Anti Void",
-Desc = "Teleports you back to the last safe spot if you fall into the void",
+Desc = "Teleports you back if you fall",
 Value = false, Default = false,
 Callback = function(on)
 if on then
@@ -469,7 +473,7 @@ end,
 PlayerTab:Section({ Title = "Target Player" })
 ​local targetName = ""
 local function findPlayer(name)
-name = name:lower()
+name = tostring(name or ""):lower()
 if name == "" then return nil end
 for _, p in ipairs(Players:GetPlayers()) do
 if p ~= lp and (p.Name:lower():sub(1, #name) == name
@@ -480,7 +484,7 @@ end
 end
 ​PlayerTab:Input({
 Title = "Player Name",
-Desc = "Username or display name (partial is fine)",
+Desc = "Username or display name",
 Value = "",
 Placeholder = "Username",
 Callback = function(text) targetName = text end,
@@ -595,13 +599,16 @@ AimTab:Section({ Title = "Target Lock & Shiftlock" })
 local aimLockEnabled = false
 ​local function setShiftlock(enabled)
 pcall(function()
-local PlayerScripts = lp:WaitForChild("PlayerScripts", 2)
+local PlayerScripts = lp:FindFirstChild("PlayerScripts")
 if PlayerScripts then
 local PlayerModule = PlayerScripts:FindFirstChild("PlayerModule")
 if PlayerModule then
-local cameraModule = require(PlayerModule):GetCameras()
+local module = require(PlayerModule)
+if module and type(module.GetCameras) == "function" then
+local cameraModule = module:GetCameras()
 if cameraModule and cameraModule.activeMouseLockController then
 cameraModule.activeMouseLockController:EnableMouseLock(enabled)
+end
 end
 end
 end
@@ -617,18 +624,21 @@ end
 if #names == 0 then table.insert(names, "None Available") end
 return names
 end
-​local aimDropdown = AimTab:Dropdown({
+​local initialNames = getPlayerNames()
+local aimDropdown = AimTab:Dropdown({
 Title = "Select Target Player",
 Desc = "Choose which player to target",
-Values = getPlayerNames(),
-Value = getPlayerNames()[1],
+Values = initialNames,
+Value = initialNames[1],
 Callback = function(selected)
 aimTargetPlayer = nil
+if type(selected) == "string" then
 for _, p in ipairs(Players:GetPlayers()) do
 local label = p.DisplayName .. " (@" .. p.Name .. ")"
 if label == selected then
 aimTargetPlayer = p
 break
+end
 end
 end
 end,
@@ -638,7 +648,9 @@ Title = "Refresh Player List",
 Desc = "Update target list with current server players",
 Callback = function()
 local newNames = getPlayerNames()
+if aimDropdown and type(aimDropdown.SetValues) == "function" then
 aimDropdown:SetValues(newNames)
+end
 notify("Aim", "Player list refreshed!")
 end,
 })
@@ -687,7 +699,7 @@ for i = 1, 11 do
 selectedEmotes[i] = defaultEmotes[1]
 end
 ​local function playEmoteAnimation(emoteObj)
-if not emoteObj or not emoteObj.Id or emoteObj.Id == "" or emoteObj.Id == "rbxassetid://0" then
+if type(emoteObj) ~= "table" or not emoteObj.Id or emoteObj.Id == "" or emoteObj.Id == "rbxassetid://0" then
 notify("Emotes", "Invalid emote animation selected!")
 return
 end
@@ -696,38 +708,47 @@ if not hum then
 notify("Emotes", "Humanoid not found!")
 return
 end
+​local animator = hum:FindFirstChildOfClass("Animator")
+if not animator then
+animator = Instance.new("Animator")
+animator.Parent = hum
+end
 ​local anim = Instance.new("Animation")
 anim.AnimationId = emoteObj.Id
 ​local ok, track = pcall(function()
+if animator and type(animator.LoadAnimation) == "function" then
+return animator:LoadAnimation(anim)
+elseif type(hum.LoadAnimation) == "function" then
 return hum:LoadAnimation(anim)
+end
 end)
 ​if ok and track then
-track:Play()
-notify("Emotes", "Playing: " .. emoteObj.Name)
+pcall(function() track:Play() end)
+notify("Emotes", "Playing: " .. tostring(emoteObj.Name))
 else
-notify("Emotes", "Failed to play emote: " .. tostring(emoteObj.Name))
+notify("Emotes", "Failed to load animation ID: " .. tostring(emoteObj.Id))
 end
 end
-​-- Create 11 Emote Selection Dropdowns
-for i = 1, 11 do
+​for i = 1, 11 do
 EmotesTab:Dropdown({
 Title = "Emotes Player " .. i,
 Desc = "Choose emote for slot " .. i,
 Values = emoteNames,
 Value = emoteNames[1],
 Callback = function(choice)
+if type(choice) == "string" then
 for _, e in ipairs(defaultEmotes) do
 if e.Name == choice then
 selectedEmotes[i] = e
 break
 end
 end
+end
 end,
 })
 end
 ​EmotesTab:Section({ Title = "Play Emotes" })
-​-- Create 11 Play Emote Buttons
-for i = 1, 11 do
+​for i = 1, 11 do
 EmotesTab:Button({
 Title = "Play Emote Player " .. i,
 Desc = "Triggers the emote selected in Emotes Player " .. i,
@@ -752,14 +773,13 @@ end)
 if not okParent then
 espFolder.Parent = lp:WaitForChild("PlayerGui")
 end
-​-- Generic ESP controller: collect() returns { [Model] = displayName }
-local function newESP(color, interval, collect)
+​local function newESP(color, interval, collect)
 local self = { entries = {}, conn = nil, last = 0 }
 ​local function remove(model)
 local e = self.entries[model]
 if e then
-e.hl:Destroy()
-e.gui:Destroy()
+pcall(function() e.hl:Destroy() end)
+pcall(function() e.gui:Destroy() end)
 self.entries[model] = nil
 end
 end
@@ -856,7 +876,7 @@ end,
 })
 ​ESPTab:Toggle({
 Title = "ESP NPC",
-Desc = "Highlight every non-player humanoid (rescans every 2s)",
+Desc = "Highlight every non-player humanoid",
 Value = false, Default = false,
 Callback = function(on)
 if on then npcESP.Start() else npcESP.Stop() end
