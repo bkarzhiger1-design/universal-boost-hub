@@ -701,13 +701,13 @@ end,
 -- =====================================================================
 EmotesTab:Section({ Title = "Emotes Configuration" })
 ​local defaultEmotes = {
-{ Name = "Dance 1",   Id = "rbxassetid://507771019" },
-{ Name = "Dance 2",   Id = "rbxassetid://507776043" },
-{ Name = "Dance 3",   Id = "rbxassetid://507777268" },
-{ Name = "Point",     Id = "rbxassetid://507770453" },
-{ Name = "Wave",      Id = "rbxassetid://507770239" },
-{ Name = "Cheer",     Id = "rbxassetid://507770677" },
-{ Name = "Laugh",     Id = "rbxassetid://507770818" }
+{ Name = "Dance 1",   EmoteName = "dance" },
+{ Name = "Dance 2",   EmoteName = "dance2" },
+{ Name = "Dance 3",   EmoteName = "dance3" },
+{ Name = "Point",     EmoteName = "point" },
+{ Name = "Wave",      EmoteName = "wave" },
+{ Name = "Cheer",     EmoteName = "cheer" },
+{ Name = "Laugh",     EmoteName = "laugh" }
 }
 ​local emoteNames = {}
 for _, e in ipairs(defaultEmotes) do
@@ -718,34 +718,27 @@ for i = 1, 11 do
 selectedEmotes[i] = defaultEmotes[1]
 end
 ​local function playEmoteAnimation(emoteObj)
-if type(emoteObj) ~= "table" or not emoteObj.Id or emoteObj.Id == "" then
-notify("Emotes", "Invalid emote animation selected!")
+if type(emoteObj) ~= "table" or not emoteObj.EmoteName then
+notify("Emotes", "Invalid emote selection!")
 return
 end
-​local hum = getHum()
-if not hum then
-notify("Emotes", "Humanoid not found!")
-return
-end
-​local animator = hum:FindFirstChildOfClass("Animator")
-if not animator then
-animator = Instance.new("Animator")
-animator.Parent = hum
-end
-​local anim = Instance.new("Animation")
-anim.AnimationId = tostring(emoteObj.Id)
-​local ok, track = pcall(function()
-if animator and type(animator.LoadAnimation) == "function" then
-return animator:LoadAnimation(anim)
-elseif type(hum.LoadAnimation) == "function" then
-return hum:LoadAnimation(anim)
+​local played = false
+pcall(function()
+played = Players:PlayEmote(emoteObj.EmoteName)
+end)
+​if not played then
+pcall(function()
+local hum = getHum()
+if hum then
+hum:PlayEmote(emoteObj.EmoteName)
+played = true
 end
 end)
-​if ok and track then
-pcall(function() track:Play() end)
+end
+​if played then
 notify("Emotes", "Playing: " .. tostring(emoteObj.Name))
 else
-notify("Emotes", "Failed to load animation ID: " .. tostring(emoteObj.Id))
+notify("Emotes", "Could not play emote: " .. tostring(emoteObj.Name))
 end
 end
 ​for i = 1, 11 do
