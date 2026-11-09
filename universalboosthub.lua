@@ -2,9 +2,29 @@
 Boost Hub  |  built with WindUI (Footagesus)
 Tabs: Main, Player, Aim, Emotes, ESP, Settings
 ]]
-​local WindUI = loadstring(game:HttpGet("https://tree-hub.vercel.app/api/UI/WindUI"))()
-if not WindUI then
-WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+​-- WindUI Loader with fallbacks
+local WINDUI_URLS = {
+"https://github.com/Footagesus/WindUI/releases/latest/download/main.lua",
+"https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua",
+"https://cdn.jsdelivr.net/gh/Footagesus/WindUI@main/dist/main.lua",
+}
+​local WindUI
+for attempt = 1, 3 do
+for _, url in ipairs(WINDUI_URLS) do
+local ok, lib = pcall(function()
+return loadstring(game:HttpGet(url))()
+end)
+if ok and type(lib) == "table" then
+WindUI = lib
+break
+end
+end
+if WindUI then break end
+task.wait(1)
+end
+​if not WindUI then
+warn("[Boost Hub] Could not load WindUI.")
+return
 end
 ​-- Services -------------------------------------------------------------
 local Players          = game:GetService("Players")
@@ -507,4 +527,4 @@ notify("Discord", "Discord invite link copied to clipboard!")
 end,
 })
 ​Window:SelectTab(1)
-notify("Boost Hub", "Loaded successfully with WindUI!")
+notify("Boost Hub", "Boost Hub loaded successfully!")
