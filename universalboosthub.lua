@@ -323,8 +323,8 @@ flatLook = flatLook.Magnitude > 1e-3 and flatLook.Unit or Vector3.new(0, 0, -1)
 flatRight = flatRight.Magnitude > 1e-3 and flatRight.Unit or Vector3.new(1, 0, 0)
 ​local md = hum.MoveDirection
 local dir = look * md:Dot(flatLook) + right * md:Dot(flatRight)
-​if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.yAxis end
-if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir -= Vector3.yAxis end
+​if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.yAxis end
+if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir = dir - Vector3.yAxis end
 ​flyBV.Velocity = dir * state.flySpeed
 flyBG.CFrame = cam.CFrame
 end)
@@ -896,4 +896,4 @@ notify("Discord", "Link copied to clipboard!")
 end,
 })
 ​Window:SelectTab(1)
-notify("Boost Hub", "Loaded successfully!")
+notify("Boost Hub", "Enjoy the script!")
