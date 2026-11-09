@@ -2,27 +2,11 @@
 Boost Hub  |  built with WindUI (Footagesus)
 Tabs: Main, Player, Aim, Emotes, ESP, Settings
 ]]
-​-- Load WindUI with fallback sources
-local WindUI
-local WINDUI_URLS = {
-"https://tree-hub.vercel.app/api/UI/WindUI",
-"https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua",
-"https://cdn.jsdelivr.net/gh/Footagesus/WindUI@main/dist/main.lua",
-}
-​for _, url in ipairs(WINDUI_URLS) do
-local ok, lib = pcall(function()
-return loadstring(game:HttpGet(url))()
-end)
-if ok and lib then
-WindUI = lib
-break
+​local WindUI = loadstring(game:HttpGet("https://tree-hub.vercel.app/api/UI/WindUI"))()
+if not WindUI then
+WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 end
-end
-​if not WindUI then
-warn("[Boost Hub] Could not load WindUI.")
-return
-end
-​-- Services
+​-- Services -------------------------------------------------------------
 local Players          = game:GetService("Players")
 local RunService       = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -31,7 +15,7 @@ local VirtualUser      = game:GetService("VirtualUser")
 local HttpService      = game:GetService("HttpService")
 local Lighting         = game:GetService("Lighting")
 ​local lp = Players.LocalPlayer
-​-- Helpers
+​-- Helpers --------------------------------------------------------------
 local function getChar() return lp and lp.Character end
 local function getHum()
 local c = getChar()
@@ -43,13 +27,10 @@ return c and c:FindFirstChild("HumanoidRootPart")
 end
 ​local function notify(title, content)
 pcall(function()
-if WindUI and WindUI.Notify then
-WindUI:Notify({ Title = tostring(title), Content = tostring(content), Duration = 3 })
-end
+WindUI:Notify({ Title = title, Content = content, Duration = 3 })
 end)
 end
-​-- Connection manager
-local conns = {}
+​local conns = {}
 local function unbind(name)
 if conns[name] then
 pcall(function() conns[name]:Disconnect() end)
@@ -58,25 +39,21 @@ end
 end
 local function bind(name, signal, fn)
 unbind(name)
-if signal then
-conns[name] = signal:Connect(fn)
-end
+if signal then conns[name] = signal:Connect(fn) end
 end
 ​local function loadRemote(name, url)
 task.spawn(function()
-local ok, res = pcall(function()
-local code = game:HttpGet(url)
-local fn = loadstring(code)
-if type(fn) == "function" then fn() end
+local ok, err = pcall(function()
+loadstring(game:HttpGet(url))()
 end)
 if ok then
 notify("Loader", name .. " loaded")
 else
-notify("Loader", name .. " failed: " .. tostring(res))
+notify("Loader", name .. " failed: " .. tostring(err))
 end
 end)
 end
-​-- Window Construction
+​-- Window ---------------------------------------------------------------
 local Window = WindUI:CreateWindow({
 Title = "Boost Hub",
 Icon = "rocket",
@@ -99,47 +76,25 @@ MainTab:Section({ Title = "Script Loaders" })
 ​MainTab:Button({
 Title = "Infinite Yield",
 Desc = "Popular admin command script",
-Callback = function()
-loadRemote("Infinite Yield", "https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source")
-end,
+Callback = function() loadRemote("Infinite Yield", "https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source") end,
 })
-​MainTab:Button({
+MainTab:Button({
 Title = "Dex Explorer",
 Desc = "Game explorer / instance viewer",
-Callback = function()
-loadRemote("Dex Explorer", "https://raw.githubusercontent.com/infyiff/backup/main/dex.lua")
-end,
+Callback = function() loadRemote("Dex Explorer", "https://raw.githubusercontent.com/infyiff/backup/main/dex.lua") end,
 })
-​MainTab:Button({
+MainTab:Button({
 Title = "SimpleSpy",
 Desc = "Remote event / function spy",
-Callback = function()
-loadRemote("SimpleSpy", "https://raw.githubusercontent.com/exxtremestuffs/SimpleSpySource/master/SimpleSpy.lua")
-end,
+Callback = function() loadRemote("SimpleSpy", "https://raw.githubusercontent.com/exxtremestuffs/SimpleSpySource/master/SimpleSpy.lua") end,
 })
-​MainTab:Button({
+MainTab:Button({
 Title = "CMD-X",
 Desc = "Command-line style admin script",
-Callback = function()
-loadRemote("CMD-X", "https://raw.githubusercontent.com/CMD-X/CMD-X/master/Source")
-end,
-})
-​MainTab:Button({
-Title = "Fates Admin",
-Desc = "Feature-rich admin commands",
-Callback = function()
-loadRemote("Fates Admin", "https://raw.githubusercontent.com/fatesc/fates-admin/main/main.lua")
-end,
-})
-​MainTab:Button({
-Title = "Nameless Admin",
-Desc = "Lightweight admin commands",
-Callback = function()
-loadRemote("Nameless Admin", "https://raw.githubusercontent.com/FilteringEnabled/NamelessAdmin/main/Source")
-end,
+Callback = function() loadRemote("CMD-X", "https://raw.githubusercontent.com/CMD-X/CMD-X/master/Source") end,
 })
 ​MainTab:Section({ Title = "Utility" })
-​MainTab:Button({
+MainTab:Button({
 Title = "Rejoin Server",
 Desc = "Rejoin the current server",
 Callback = function()
@@ -152,60 +107,23 @@ TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, lp)
 end
 end,
 })
-​local function smallServerHop()
-notify("Server Hop", "Searching for a small server...")
-task.spawn(function()
-local ok, result = pcall(function()
-local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
-return HttpService:JSONDecode(game:HttpGet(url))
-end)
-if not ok or type(result) ~= "table" or not result.data then
-notify("Server Hop", "Could not fetch the server list")
-return
-end
-​local best
-for _, s in ipairs(result.data) do
-if s.id ~= game.JobId and s.playing and s.maxPlayers and s.playing < s.maxPlayers then
-if not best or s.playing < best.playing then
-best = s
-end
-end
-end
-​if best then
-notify("Server Hop", ("Joining server with %d player(s)"):format(best.playing))
-TeleportService:TeleportToPlaceInstance(game.PlaceId, best.id, lp)
-else
-notify("Server Hop", "No other server found")
-end
-end)
-end
-​MainTab:Button({
-Title = "Small Server Hop",
-Desc = "Joins the public server with the fewest players",
-Callback = smallServerHop,
-})
 ​-- =====================================================================
 -- PLAYER
 -- =====================================================================
 local DEFAULT_SPEED, DEFAULT_JUMP, DEFAULT_GRAVITY = 16, 50, workspace.Gravity
-​local state = {
-speedOn = false, speed = 50,
-jumpOn = false,  jump = 100,
-flyOn = false,   flySpeed = 60,
-}
+local state = { speedOn = false, speed = 50, jumpOn = false, jump = 100, flyOn = false, flySpeed = 60 }
 ​PlayerTab:Section({ Title = "Movement" })
 ​PlayerTab:Slider({
 Title = "WalkSpeed",
 Step = 1,
 Value = { Min = 16, Max = 300, Default = 50 },
-Callback = function(v) if type(v) == "number" then state.speed = v end end,
+Callback = function(v) state.speed = v end,
 })
 PlayerTab:Toggle({
 Title = "Enable WalkSpeed",
-Desc = "Keeps your custom speed applied",
-Value = false, Default = false,
+Value = false,
 Callback = function(on)
-state.speedOn = not not on
+state.speedOn = on
 if not on then
 local h = getHum()
 if h then h.WalkSpeed = DEFAULT_SPEED end
@@ -216,13 +134,13 @@ end,
 Title = "JumpPower",
 Step = 1,
 Value = { Min = 50, Max = 400, Default = 100 },
-Callback = function(v) if type(v) == "number" then state.jump = v end end,
+Callback = function(v) state.jump = v end,
 })
 PlayerTab:Toggle({
 Title = "Enable JumpPower",
-Value = false, Default = false,
+Value = false,
 Callback = function(on)
-state.jumpOn = not not on
+state.jumpOn = on
 if not on then
 local h = getHum()
 if h then h.JumpPower = DEFAULT_JUMP end
@@ -238,15 +156,9 @@ h.UseJumpPower = true
 h.JumpPower = state.jump
 end
 end)
-​PlayerTab:Slider({
-Title = "Gravity",
-Step = 1,
-Value = { Min = 0, Max = 400, Default = math.floor(DEFAULT_GRAVITY) },
-Callback = function(v) if type(v) == "number" then workspace.Gravity = v end end,
-})
 ​PlayerTab:Toggle({
 Title = "Infinite Jump",
-Value = false, Default = false,
+Value = false,
 Callback = function(on)
 if on then
 bind("infjump", UserInputService.JumpRequest, function()
@@ -260,8 +172,7 @@ end,
 })
 ​PlayerTab:Toggle({
 Title = "Noclip",
-Desc = "Walk through walls",
-Value = false, Default = false,
+Value = false,
 Callback = function(on)
 if on then
 bind("noclip", RunService.Stepped, function()
@@ -279,7 +190,7 @@ end
 end,
 })
 ​PlayerTab:Section({ Title = "Fly" })
-​local flyBV, flyBG
+local flyBV, flyBG
 ​local function stopFly()
 unbind("fly")
 if flyBV then flyBV:Destroy() flyBV = nil end
@@ -324,22 +235,20 @@ end
 Title = "Fly Speed",
 Step = 1,
 Value = { Min = 10, Max = 300, Default = 60 },
-Callback = function(v) if type(v) == "number" then state.flySpeed = v end end,
+Callback = function(v) state.flySpeed = v end,
 })
 PlayerTab:Toggle({
 Title = "Fly",
-Desc = "WASD / joystick to move, Space up, Ctrl down.",
-Value = false, Default = false,
+Value = false,
 Callback = function(on)
-state.flyOn = not not on
+state.flyOn = on
 if on then startFly() else stopFly() end
 end,
 })
 ​PlayerTab:Section({ Title = "Protection" })
-​PlayerTab:Toggle({
+PlayerTab:Toggle({
 Title = "Anti AFK",
-Desc = "Prevents the 20 minute idle kick",
-Value = false, Default = false,
+Value = false,
 Callback = function(on)
 if on then
 bind("antiafk", lp.Idled, function()
@@ -352,38 +261,8 @@ end
 end,
 })
 ​PlayerTab:Toggle({
-Title = "Anti Fling",
-Value = false, Default = false,
-Callback = function(on)
-if on then
-bind("antifling", RunService.Stepped, function()
-for _, plr in ipairs(Players:GetPlayers()) do
-if plr ~= lp and plr.Character then
-for _, p in ipairs(plr.Character:GetDescendants()) do
-if p:IsA("BasePart") and p.CanCollide then
-p.CanCollide = false
-end
-end
-end
-end
-local root = getRoot()
-if root and not state.flyOn then
-if root.AssemblyLinearVelocity.Magnitude > 150
-or root.AssemblyAngularVelocity.Magnitude > 50 then
-root.AssemblyLinearVelocity = Vector3.zero
-root.AssemblyAngularVelocity = Vector3.zero
-end
-end
-end)
-else
-unbind("antifling")
-end
-end,
-})
-​PlayerTab:Section({ Title = "Character" })
-​PlayerTab:Toggle({
 Title = "God Mode",
-Value = false, Default = false,
+Value = false,
 Callback = function(on)
 if on then
 bind("god", RunService.Heartbeat, function()
@@ -397,196 +276,16 @@ unbind("god")
 end
 end,
 })
-​local lastSafe
-PlayerTab:Toggle({
-Title = "Anti Void",
-Value = false, Default = false,
-Callback = function(on)
-if on then
-bind("antivoid", RunService.Heartbeat, function()
-local r, h = getRoot(), getHum()
-if not (r and h) then return end
-if h.FloorMaterial ~= Enum.Material.Air then
-lastSafe = r.CFrame
-elseif lastSafe and r.Position.Y < workspace.FallenPartsDestroyHeight + 100 then
-r.AssemblyLinearVelocity = Vector3.zero
-r.CFrame = lastSafe + Vector3.new(0, 5, 0)
-end
-end)
-else
-unbind("antivoid")
-end
-end,
-})
-​local spinSpeed = 20
-PlayerTab:Slider({
-Title = "Spin Speed",
-Step = 1,
-Value = { Min = 1, Max = 100, Default = 20 },
-Callback = function(v) if type(v) == "number" then spinSpeed = v end end,
-})
-PlayerTab:Toggle({
-Title = "Spin",
-Value = false, Default = false,
-Callback = function(on)
-if on then
-bind("spin", RunService.Heartbeat, function()
-local r = getRoot()
-if r then
-r.CFrame = r.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
-end
-end)
-else
-unbind("spin")
-end
-end,
-})
-​PlayerTab:Button({
-Title = "Sit",
-Callback = function()
-local h = getHum()
-if h then h.Sit = true end
-end,
-})
-​PlayerTab:Slider({
-Title = "Field of View",
-Step = 1,
-Value = { Min = 30, Max = 120, Default = 70 },
-Callback = function(v)
-if type(v) == "number" then
-local cam = workspace.CurrentCamera
-if cam then cam.FieldOfView = v end
-end
-end,
-})
-​PlayerTab:Section({ Title = "Target Player" })
-​local targetName = ""
-local function findPlayer(name)
-name = tostring(name or ""):lower()
-if name == "" then return nil end
-for _, p in ipairs(Players:GetPlayers()) do
-if p ~= lp and (p.Name:lower():sub(1, #name) == name
-or p.DisplayName:lower():sub(1, #name) == name) then
-return p
-end
-end
-end
-​PlayerTab:Input({
-Title = "Player Name",
-Value = "",
-Placeholder = "Username",
-Callback = function(text) targetName = tostring(text or "") end,
-})
-​PlayerTab:Button({
-Title = "Teleport to Player",
-Callback = function()
-local target = findPlayer(targetName)
-local tr = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
-local root = getRoot()
-if root and tr then
-root.CFrame = tr.CFrame * CFrame.new(0, 0, 3)
-else
-notify("Teleport", "Player not found")
-end
-end,
-})
-​PlayerTab:Toggle({
-Title = "Spectate Player",
-Value = false, Default = false,
-Callback = function(on)
-local cam = workspace.CurrentCamera
-if not cam then return end
-if on then
-local target = findPlayer(targetName)
-local hum = target and target.Character and target.Character:FindFirstChildOfClass("Humanoid")
-if hum then
-cam.CameraSubject = hum
-else
-notify("Spectate", "Player not found")
-end
-else
-cam.CameraSubject = getHum()
-end
-end,
-})
-​PlayerTab:Section({ Title = "Misc" })
-​local origLight = {
-Brightness = Lighting.Brightness,
-ClockTime = Lighting.ClockTime,
-FogEnd = Lighting.FogEnd,
-Ambient = Lighting.Ambient,
-}
-PlayerTab:Toggle({
-Title = "Fullbright",
-Value = false, Default = false,
-Callback = function(on)
-if on then
-bind("fullbright", RunService.RenderStepped, function()
-Lighting.Brightness = 2
-Lighting.ClockTime = 14
-Lighting.FogEnd = 1e9
-Lighting.Ambient = Color3.new(1, 1, 1)
-end)
-else
-unbind("fullbright")
-for k, v in pairs(origLight) do
-Lighting[k] = v
-end
-end
-end,
-})
-​PlayerTab:Toggle({
-Title = "Click Teleport",
-Value = false, Default = false,
-Callback = function(on)
-if on then
-bind("clicktp", UserInputService.InputBegan, function(input, processed)
-if processed then return end
-if input.UserInputType == Enum.UserInputType.MouseButton1
-and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-local root = getRoot()
-local hit = lp:GetMouse().Hit
-if root and hit then
-root.CFrame = CFrame.new(hit.Position + Vector3.new(0, 3, 0))
-end
-end
-end)
-else
-unbind("clicktp")
-end
-end,
-})
-​PlayerTab:Button({
-Title = "Reset Character",
-Callback = function()
-local h = getHum()
-if h then h.Health = 0 end
-end,
-})
-​PlayerTab:Button({
-Title = "Reset All Movement",
-Callback = function()
-local h = getHum()
-if h then
-h.WalkSpeed = DEFAULT_SPEED
-h.JumpPower = DEFAULT_JUMP
-end
-workspace.Gravity = DEFAULT_GRAVITY
-notify("Player", "Movement reset to defaults")
-end,
-})
 ​-- =====================================================================
 -- AIM TAB
 -- =====================================================================
-AimTab:Section({ Title = "Target Lock & Shiftlock" })
-​local aimTargetPlayer = nil
-local aimLockEnabled = false
+AimTab:Section({ Title = "Target Aim & Camera Lock" })
+​local selectedAimTarget = nil
+local aimEnabled = false
 ​local function getPlayerNames()
 local names = {}
 for _, p in ipairs(Players:GetPlayers()) do
-if p ~= lp then
-table.insert(names, p.Name)
-end
+if p ~= lp then table.insert(names, p.Name) end
 end
 if #names == 0 then table.insert(names, "None") end
 return names
@@ -595,26 +294,31 @@ end
 Title = "Select Target Player",
 Values = getPlayerNames(),
 Value = "None",
-Callback = function(selected)
-local str = type(selected) == "table" and selected[1] or selected
-if type(str) == "string" then
-aimTargetPlayer = Players:FindFirstChild(str)
+Callback = function(v)
+if type(v) == "table" then
+selectedAimTarget = v[1]
+else
+selectedAimTarget = v
 end
 end,
 })
 ​AimTab:Toggle({
-Title = "Enable Aim Lock & Shiftlock",
+Title = "Enable Aim Lock",
 Value = false,
 Callback = function(on)
-aimLockEnabled = not not on
-if aimLockEnabled then
+aimEnabled = on
+if on then
 bind("aimlock", RunService.RenderStepped, function()
-if aimLockEnabled and aimTargetPlayer and aimTargetPlayer.Character then
-local targetHead = aimTargetPlayer.Character:FindFirstChild("Head") or aimTargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+if not aimEnabled or not selectedAimTarget then return end
+local targetPlayer = Players:FindFirstChild(tostring(selectedAimTarget))
+if targetPlayer and targetPlayer.Character then
+local targetRoot = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+local myRoot = getRoot()
 local cam = workspace.CurrentCamera
-if targetHead and cam then
-lp.DevEnableMouseLock = true
-cam.CFrame = CFrame.new(cam.CFrame.Position, targetHead.Position)
+if targetRoot and myRoot and cam then
+local targetPos = targetRoot.Position + Vector3.new(0, 2, 0)
+cam.CFrame = CFrame.lookAt(cam.CFrame.Position, targetPos)
+myRoot.CFrame = CFrame.new(myRoot.Position, Vector3.new(targetRoot.Position.X, myRoot.Position.Y, targetRoot.Position.Z))
 end
 end
 end)
@@ -624,9 +328,9 @@ end
 end,
 })
 ​-- =====================================================================
--- EMOTES TAB (70 Emotes across 10 Player Slots)
+-- EMOTES TAB (70 Emotes x 10 Slots)
 -- =====================================================================
-EmotesTab:Section({ Title = "Emotes Configuration" })
+EmotesTab:Section({ Title = "Emotes Selector" })
 ​local emoteList = {
 "Floating Aura", "Monkey", "Curtsy", "Godlike", "Helicopter", "Happy", "TWICE The Feels",
 "Baby Queen - Bouncy Twirl", "Rat Dance", "Plane", "Sleep", "Tank", "Hero Landing", "Shy",
@@ -642,98 +346,50 @@ EmotesTab:Section({ Title = "Emotes Configuration" })
 "HOLIDAY Dance", "Hip Sway"
 }
 ​local emoteIds = {
-["Floating Aura"] = 79795305221612,
-["Monkey"] = 3716636630,
-["Curtsy"] = 4646306583,
-["Godlike"] = 3823158750,
-["Helicopter"] = 110553756436163,
-["Happy"] = 4849499887,
-["TWICE The Feels"] = 12874468267,
-["Baby Queen - Bouncy Twirl"] = 14353423348,
-["Rat Dance"] = 83606297144428,
-["Plane"] = 134913783169182,
-["Sleep"] = 4689362868,
-["Tank"] = 85076031433488,
-["Hero Landing"] = 5104377791,
-["Shy"] = 3576717965,
-["Car"] = 115407270129592,
-["Floss Dance"] = 5917570207,
-["Sit"] = 129668542320076,
-["Quiet Waves"] = 7466046574,
-["Fake MM2 Death"] = 107498554725527,
-["Yungblud Happier Jump"] = 15610015346,
-["Baby Dance"] = 4272484885,
-["Baby Queen - Face Frame"] = 14353421343,
-["Box"] = 73500261613116,
-["Top Rock"] = 3570535774,
-["Hide"] = 84868707350198,
-["Baby Queen - Strut"] = 14353425085,
-["Bored"] = 5230661597,
-["KATSEYE - Touch"] = 139021427684680,
-["Dog"] = 84198855496510,
-["L Dance"] = 73039500693145,
-["Ragdoll Push"] = 91452077708399,
-["Take The L"] = 75633408126191,
-["Fry Dance"] = 124799741487022,
-["Twirl"] = 3716633898,
-["Fashionable"] = 3576745472,
-["Line Dance"] = 4049646104,
-["Cower"] = 4940597758,
-["High Wave"] = 5915776835,
-["Worm"] = 108956933782219,
-["TWICE Feel Special"] = 14900153406,
-["V Pose"] = 10214418283,
-["Lotus Position"] = 12507097350,
-["Frosty Flair"] = 10214406616,
-["Effortless Aura Pose"] = 101573394483995,
-["HOT TO GO!"] = 79312439851071,
-["Dolphin Dance"] = 5938365243,
-["Old Town Road Dance"] = 5938394742,
-["Phase"] = 79653736088166,
-["Sturdy Dance"] = 17746270218,
-["Piano Hands"] = 16553249658,
-["Around Town"] = 3576747102,
-["Head Bop"] = 15554010118,
-["Celebrate"] = 3994127840,
-["SHAKE"] = 132367660388476,
-["Show Dem Wrists"] = 7202898984,
-["Side to Side"] = 3762641826,
-["Dorky Dance"] = 4212499637,
-["Cute Levitating"] = 101601077005248,
-["TWICE LIKEY"] = 14900151704,
-["Chill Bounce"] = 132112297758791,
-["Telekinesis Head Floating Aura"] = 81666519067619,
-["Hornet's Spider Dance"] = 74716792202343,
-["Spiderman Hang"] = 108635834286627,
-["Shuffle"] = 4391208058,
-["Fancy Feet"] = 3934988903,
-["Dizzy"] = 3934986896,
-["TWICE What Is Love"] = 13344121112,
-["Jamal Brazil Groove"] = 104131847054135,
-["HOLIDAY Dance"] = 5938396308,
-["Hip Sway"] = 80963950541052
+["Floating Aura"] = 79795305221612, ["Monkey"] = 3716636630, ["Curtsy"] = 4646306583,
+["Godlike"] = 3823158750, ["Helicopter"] = 110553756436163, ["Happy"] = 4849499887,
+["TWICE The Feels"] = 12874468267, ["Baby Queen - Bouncy Twirl"] = 14353423348, ["Rat Dance"] = 83606297144428,
+["Plane"] = 134913783169182, ["Sleep"] = 4689362868, ["Tank"] = 85076031433488,
+["Hero Landing"] = 5104377791, ["Shy"] = 3576717965, ["Car"] = 115407270129592,
+["Floss Dance"] = 5917570207, ["Sit"] = 129668542320076, ["Quiet Waves"] = 7466046574,
+["Fake MM2 Death"] = 107498554725527, ["Yungblud Happier Jump"] = 15610015346, ["Baby Dance"] = 4272484885,
+["Baby Queen - Face Frame"] = 14353421343, ["Box"] = 73500261613116, ["Top Rock"] = 3570535774,
+["Hide"] = 84868707350198, ["Baby Queen - Strut"] = 14353425085, ["Bored"] = 5230661597,
+["KATSEYE - Touch"] = 139021427684680, ["Dog"] = 84198855496510, ["L Dance"] = 73039500693145,
+["Ragdoll Push"] = 91452077708399, ["Take The L"] = 75633408126191, ["Fry Dance"] = 124799741487022,
+["Twirl"] = 3716633898, ["Fashionable"] = 3576745472, ["Line Dance"] = 4049646104,
+["Cower"] = 4940597758, ["High Wave"] = 5915776835, ["Worm"] = 108956933782219,
+["TWICE Feel Special"] = 14900153406, ["V Pose"] = 10214418283, ["Lotus Position"] = 12507097350,
+["Frosty Flair"] = 10214406616, ["Effortless Aura Pose"] = 101573394483995, ["HOT TO GO!"] = 79312439851071,
+["Dolphin Dance"] = 5938365243, ["Old Town Road Dance"] = 5938394742, ["Phase"] = 79653736088166,
+["Sturdy Dance"] = 17746270218, ["Piano Hands"] = 16553249658, ["Around Town"] = 3576747102,
+["Head Bop"] = 15554010118, ["Celebrate"] = 3994127840, ["SHAKE"] = 132367660388476,
+["Show Dem Wrists"] = 7202898984, ["Side to Side"] = 3762641826, ["Dorky Dance"] = 4212499637,
+["Cute Levitating"] = 101601077005248, ["TWICE LIKEY"] = 14900151704, ["Chill Bounce"] = 132112297758791,
+["Telekinesis Head Floating Aura"] = 81666519067619, ["Hornet's Spider Dance"] = 74716792202343,
+["Spiderman Hang"] = 108635834286627, ["Shuffle"] = 4391208058, ["Fancy Feet"] = 3934988903,
+["Dizzy"] = 3934986896, ["TWICE What Is Love"] = 13344121112, ["Jamal Brazil Groove"] = 104131847054135,
+["HOLIDAY Dance"] = 5938396308, ["Hip Sway"] = 80963950541052
 }
 ​local selectedEmotes = {}
-​for slot = 1, 10 do
-selectedEmotes[slot] = emoteList[1]
-​pcall(function()
-EmotesTab:Dropdown({
-Title = "Emotes Player " .. slot,
+​for i = 1, 10 do
+selectedEmotes[i] = emoteList[1]
+​EmotesTab:Dropdown({
+Title = "Emotes Player " .. i,
 Values = emoteList,
 Value = emoteList[1],
 Callback = function(v)
-local val = type(v) == "table" and v[1] or v
-if type(val) == "string" then
-selectedEmotes[slot] = val
+if type(v) == "table" then
+selectedEmotes[i] = v[1]
+else
+selectedEmotes[i] = v
 end
 end,
 })
-end)
-​pcall(function()
-EmotesTab:Button({
-Title = "Play Emote Player " .. slot,
+​EmotesTab:Button({
+Title = "Play Emote Player " .. i,
 Callback = function()
-local chosenName = selectedEmotes[slot]
+local chosenName = selectedEmotes[i]
 local assetId = emoteIds[chosenName]
 if not assetId then return end
 ​pcall(function()
@@ -748,7 +404,6 @@ end
 end)
 end,
 })
-end)
 end
 ​-- =====================================================================
 -- ESP
@@ -833,47 +488,23 @@ end
 end
 return t
 end)
-​local npcESP = newESP(Color3.fromRGB(255, 200, 60), 2, function()
-local t = {}
-for _, d in ipairs(workspace:GetDescendants()) do
-if d:IsA("Humanoid") and d.Health > 0 then
-local m = d.Parent
-if m and m:IsA("Model") and m ~= lp.Character
-and not Players:GetPlayerFromCharacter(m) then
-t[m] = m.Name
-end
-end
-end
-return t
-end)
 ​ESPTab:Toggle({
 Title = "ESP Player",
-Desc = "Highlight, name, distance and health of other players",
-Value = false, Default = false,
+Value = false,
 Callback = function(on)
 if on then playerESP.Start() else playerESP.Stop() end
-end,
-})
-​ESPTab:Toggle({
-Title = "ESP NPC",
-Desc = "Highlight every non-player humanoid (rescans every 2s)",
-Value = false, Default = false,
-Callback = function(on)
-if on then npcESP.Start() else npcESP.Stop() end
 end,
 })
 ​-- =====================================================================
 -- SETTINGS
 -- =====================================================================
 SettingsTab:Section({ Title = "Community" })
-​SettingsTab:Button({
+SettingsTab:Button({
 Title = "Join Discord Server",
-Desc = "Opens the invite in Discord and copies the link",
 Callback = function()
-local link = "https://discord.gg/fdNcwysDg"
-if setclipboard then pcall(setclipboard, link) end
-notify("Discord", "Link copied to clipboard!")
+if setclipboard then pcall(setclipboard, "https://discord.gg/fdNcwysDg") end
+notify("Discord", "Discord invite link copied to clipboard!")
 end,
 })
-​pcall(function() Window:SelectTab(1) end)
-notify("Boost Hub", "Enjoy the script! ")
+​Window:SelectTab(1)
+notify("Boost Hub", "Loaded successfully with WindUI!")
