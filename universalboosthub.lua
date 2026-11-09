@@ -687,8 +687,15 @@ for i = 1, 11 do
 selectedEmotes[i] = defaultEmotes[1]
 end
 ​local function playEmoteAnimation(emoteObj)
-local hum = getHum()
-if not hum then notify("Emotes", "Humanoid not found!") return end
+if not emoteObj or not emoteObj.Id or emoteObj.Id == "" or emoteObj.Id == "rbxassetid://0" then
+notify("Emotes", "Invalid emote animation selected!")
+return
+end
+​local hum = getHum()
+if not hum then
+notify("Emotes", "Humanoid not found!")
+return
+end
 ​local anim = Instance.new("Animation")
 anim.AnimationId = emoteObj.Id
 ​local ok, track = pcall(function()
@@ -698,7 +705,7 @@ end)
 track:Play()
 notify("Emotes", "Playing: " .. emoteObj.Name)
 else
-notify("Emotes", "Failed to play emote: " .. emoteObj.Name)
+notify("Emotes", "Failed to play emote: " .. tostring(emoteObj.Name))
 end
 end
 ​-- Create 11 Emote Selection Dropdowns
@@ -728,6 +735,8 @@ Callback = function()
 local emoteToPlay = selectedEmotes[i]
 if emoteToPlay then
 playEmoteAnimation(emoteToPlay)
+else
+notify("Emotes", "No emote assigned to Slot " .. i)
 end
 end,
 })
