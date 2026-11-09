@@ -789,7 +789,8 @@ EmotesTab:Section({ Title = "Emotes Configuration (70 Emotes)" })
 ​for i = 1, 10 do
 local slotIndex = i
 selectedEmotes[slotIndex] = emoteList[1]
-​EmotesTab:Dropdown({
+​pcall(function()
+EmotesTab:Dropdown({
 Title = "Emotes Player " .. slotIndex,
 Values = emoteList,
 Value = emoteList[1],
@@ -800,7 +801,9 @@ selectedEmotes[slotIndex] = str
 end
 end,
 })
-​EmotesTab:Button({
+end)
+​pcall(function()
+EmotesTab:Button({
 Title = "Play Emote Player " .. slotIndex,
 Callback = function()
 local chosenName = selectedEmotes[slotIndex]
@@ -822,6 +825,7 @@ end
 end)
 end,
 })
+end)
 end
 ​-- =====================================================================
 -- ESP
